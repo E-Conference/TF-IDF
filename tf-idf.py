@@ -1,12 +1,22 @@
 # -*- coding: cp1252 -*-
-from math import exp, expm1
+import MySQLdb
+import math
 from stemming.porter2 import stem
 import re
+import sys
 
 class Term:
-    def __init__(self, content, tf):
+    def __init__(self, content, tf, itf):
         self.content = content
         self.tf = tf
+        self.itf = itf
+
+    def tfitf(self):
+        try:
+            return self.tf*self.itf
+        except TypeError:
+            print(">> Extraction failed -- Either tf or itf is NoneType \n @tf[" + str(self.tf)+ "];@itf[" + str(self.itf) + "] --\nSee the following stacktrace for further information.")
+            sys.exit(0)
 
     def __eq__(self, other):
         if(other != None):
@@ -24,28 +34,28 @@ class Term:
 
     def __lt__(self, other):
         if(other != None):
-            if(self.tf < other.tf):
+            if(self.tfitf() < other.tfitf()):
                 return True
         else:
             return False
 
     def __le__(self, other):
         if(other != None):
-            if(self.tf <= other.tf):
+            if(self.tfitf() <= other.tfitf()):
                 return True
         else:
             return False
 
     def __gt__(self, other):
         if(other != None):
-            if(self.tf > other.tf):
+            if(self.tfitf() > other.tfitf()):
                 return True
         else:
             return False
 
     def __ge__(self, other):
         if(other != None):
-            if(self.tf >= other.tf):
+            if(self.tfitf() >= other.tfitf()):
                 return True
         else:
             return False
@@ -95,23 +105,53 @@ def idf(term, documents):
         if term in document.split(" "):
             card_D_C = card_D_C + 1
 
-    return math.log( (card_D / card_D_C), 10 )
-
+    try:
+        return math.log1p(card_D / card_D_C)
+    except ZeroDivisionError:
+        print(">> Divided By Zero -- trace: @cardDocuments[" + str(len(documents)) + "] @cardDC is zero --") 
 
 def fetch_docs(endpoint):
     return 0
 
-doc = escape("Lookup algorithms[edit] A simple stemmer looks up the inflected form in a lookup table. The advantages of this approach is that it is simple, fast, and easily handles exceptions. The disadvantages are that all inflected forms must be explicitly listed in the table: new or unfamiliar words are not handled, even if they are perfectly regular (e.g. iPads ~ iPad), and the table may be large. For languages with simple morphology, like English, table sizes are modest, but highly inflected languages like Turkish may have hundreds of potential inflected forms for each root. A lookup approach may use preliminary part-of-speech tagging to avoid overstemming.[2] The production technique[edit] The lookup table used by a stemmer is generally produced semi-automatically. For example, if the word is run, then the inverted algorithm might automatically generate the forms running, runs, runned, and runly. The last two forms are valid constructions, but they are unlikely to appear in a normal English-language text. Suffix-stripping algorithms[edit] Suffix stripping algorithms do not rely on a lookup table that consists of inflected forms and root form relations. Instead, a typically smaller list of rules is stored which provides a path for the algorithm, given an input word form, to find its root form. Some examples of the rules include: if the word ends in 'ed', remove the 'ed' if the word ends in 'ing', remove the 'ing' if the word ends in 'ly', remove the 'ly' Suffix stripping approaches enjoy the benefit of being much simpler to maintain than brute force algorithms, assuming the maintainer is sufficiently knowledgeable in the challenges of linguistics and morphology and encoding suffix stripping rules. Suffix stripping algorithms are sometimes regarded as crude given the poor performance when dealing with exceptional relations (like 'ran' and 'run'). The solutions produced by suffix stripping algorithms are limited to those lexical categories which have well known suffixes with few exceptions. This, however, is a problem, as not all parts of speech have such a well formulated set of rules. Lemmatisation attempts to improve upon this challenge. Prefix stripping may also be implemented. Of course, not all languages use prefixing or suffixing. Additional algorithm criteria[edit] Suffix stripping algorithms may differ in results for a variety of reasons. One such reason is whether the algorithm constrains whether the output word must be a real word in the given language. Some approaches do not require the word to actually exist in the language lexicon (the set of all words in the language). Alternatively, some suffix stripping approaches maintain a database (a large list) of all known morphological word roots that exist as real words. These approaches check the list for the existence of the term prior to making a decision. Typically, if the term does not exist, alternate action is taken. This alternate action may involve several other criteria. The non-existence of an output term may serve to cause the algorithm to try alternate suffix stripping rules. It can be the case that two or more suffix stripping rules apply to the same input term, which creates an ambiguity as to which rule to apply. The algorithm may assign (by human hand or stochastically) a priority to one rule or another. Or the algorithm may reject one rule application because it results in a non-existent term whereas the other overlapping rule does not. For example, given the English term friendlies, the algorithm may identify the ies suffix and apply the appropriate rule and achieve the result of friendl. friendl is likely not found in the lexicon, and therefore the rule is rejected. One improvement upon basic suffix stripping is the use of suffix substitution. Similar to a stripping rule, a substitution rule replaces a suffix with an alternate suffix. For example, there could exist a rule that replaces ies with y. How this affects the algorithm varies on the algorithm's design. To illustrate, the algorithm may identify that both the ies suffix stripping rule as well as the suffix substitution rule apply. Since the stripping rule results in a non-existent term in the lexicon, but the substitution rule does not, the substitution rule is applied instead. In this example, friendlies becomes friendly instead of friendl. Diving further into the details, a common technique is to apply rules in a cyclical fashion (recursively, as computer scientists would say). After applying the suffix substitution rule in this example scenario, a second pass is made to identify matching rules on the term friendly, where the ly stripping rule is likely identified and accepted. In summary, friendlies becomes (via substitution) friendly which becomes (via stripping) friend. This example also helps illustrate the difference between a rule-based approach and a brute force approach. In a brute force approach, the algorithm would search for friendlies in the set of hundreds of thousands of inflected word forms and ideally find the corresponding root form friend. In the rule-based approach, the three rules mentioned above would be applied in succession to converge on the same solution. Chances are that the rule-based approach would be faster.")
-#doc = escape("Python fully supports mixed arithmetic: when a binary arithmetic operator has operands of different numeric types, the operand with the “narrower” type is widened to that of the other, where plain integer is narrower than long integer is narrower than floating point is narrower than complex. Comparisons between numbers of mixed type use the same rule. [2] The constructors int(), long(), float(), and complex() can be used to produce numbers of a specific type.")
-tc = TermCollection(len(doc.split(" ")))
+def get_keywords(document_id, host, username, password, dbname, tbl_name, col_name, kw_nb, char_limit):
+    db = MySQLdb.connect(host=host, user=username, passwd=password, db=dbname)
+    cur = db.cursor()
+    document = ""
 
-for term in doc.split(" "):
-    if(len(term) > 3):
-        tf_ = tf(term, doc)
-        clTerm = Term(term, tf_)
-        tc.insert(clTerm)
+    cur.execute("SELECT COUNT(*) FROM " + tbl_name + " WHERE length(x_key) > " + str(char_limit))
+    for row in cur.fetchall():
+        max_size = int(row[0])
 
-print(str(len(tc.terms)) + " potential keywords extracted.")
+    documents = [None] * max_size
 
-for term in tc.retrieve(5):
-    print(term.content + " | " + str(term.tf))
+    cur.execute("SELECT " + col_name + " FROM " + tbl_name + " WHERE length(x_key) > " + str(char_limit))
+
+    i = 0
+    for row in cur.fetchall() :
+        documents[i] = escape(row[0])
+        i = i+1
+
+    cur.execute("SELECT " + col_name + " FROM " + tbl_name + " WHERE id = " + str(document_id))
+    for row in cur.fetchall():
+        document = escape(row[0])
+
+    tc = TermCollection(len(document.split(" ")))
+
+    for term in document.split(" "):
+        if(len(term) > 3):
+            tf_ = tf(term, document)
+            idf_ = idf(term, documents)
+            clTerm = Term(term, tf_, idf_)
+            tc.insert(clTerm)
+    
+    return tc.retrieve(kw_nb)
+
+
+kws = get_keywords(388, "localhost", "root", "", "wwwconference", "xproperty", "x_key", 5, 50)     
+
+print("Extraction result:\n========")
+for term in kws:
+    try:
+        print(term.content)
+    except AttributeError:
+        print(">> WARNING: Unexpected end of keywords!")
